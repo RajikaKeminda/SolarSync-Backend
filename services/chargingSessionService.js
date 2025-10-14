@@ -542,6 +542,34 @@ const getRecentChargingSessions = async (limit = 10) => {
   }
 };
 
+// Get charging sessions by station owner ID
+const getChargingSessionsByStationOwnerId = async (ownerId) => {
+  try {
+    // First, get all stations owned by this owner
+    const Station = require('../models/Station');
+    const stations = await Station.find({ ownerId }).select('_id');
+    const stationIds = stations.map(station => station._id);
+    
+    if (stationIds.length === 0) {
+      return []; // No stations found for this owner
+    }
+    
+    // Then get all charging sessions for these stations
+    const sessions = await ChargingSession.find({ 
+      stationId: { $in: stationIds } 
+    })
+      .populate('userId', 'firstName lastName email')
+      .populate('vehicleId', 'make model year')
+      .populate('stationId', 'name address ownerId')
+      .populate('reservationId', 'scheduledStartTime estimatedDuration')
+      .sort({ startTime: -1 });
+    
+    return sessions;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Get charging sessions by multiple criteria
 const getChargingSessionsByCriteria = async (criteria) => {
   try {
@@ -611,5 +639,6 @@ module.exports = {
   getStationChargingSessionStats,
   getGlobalChargingSessionStats,
   getRecentChargingSessions,
-  getChargingSessionsByCriteria
+  getChargingSessionsByCriteria,
+  getChargingSessionsByStationOwnerId
 };

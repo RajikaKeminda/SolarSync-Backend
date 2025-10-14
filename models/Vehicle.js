@@ -31,7 +31,6 @@ const vehicleSchema = new mongoose.Schema({
   chargingPortType: [{
     type: String,
     required: true,
-    enum: ['Type1', 'Type2', 'CCS', 'CHAdeMO', 'Tesla']
   }],
   estimatedRange: {
     type: Number,

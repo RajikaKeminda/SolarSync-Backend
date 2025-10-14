@@ -447,6 +447,25 @@ router.get('/reservation/:reservationId', async (req, res) => {
   }
 });
 
+// GET /charging-sessions/station-owner/:ownerId - Get charging sessions by station owner ID
+router.get('/station-owner/:ownerId', async (req, res) => {
+  try {
+    const { ownerId } = req.params;
+    const sessions = await chargingSessionService.getChargingSessionsByStationOwnerId(ownerId);
+    res.json({
+      success: true,
+      data: sessions,
+      count: sessions.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching charging sessions by station owner',
+      error: error.message
+    });
+  }
+});
+
 // GET /charging-sessions/:id - Get charging session by ID
 router.get('/:id', async (req, res) => {
   try {

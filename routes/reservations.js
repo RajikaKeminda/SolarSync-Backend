@@ -426,12 +426,12 @@ router.post('/', async (req, res) => {
       });
     }
 
-    if (startTime < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Scheduled start time cannot be in the past'
-      });
-    }
+    // if (startTime < new Date()) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Scheduled start time cannot be in the past'
+    //   });
+    // }
 
     // Validate estimated duration
     if (reservationData.estimatedDuration < 1 || reservationData.estimatedDuration > 1440) {

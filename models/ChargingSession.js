@@ -39,7 +39,7 @@ const chargingSessionSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ['scheduled', 'active', 'completed', 'cancelled'],
-    default: 'scheduled'
+    default: 'active'
   },
   paymentStatus: {
     type: String,

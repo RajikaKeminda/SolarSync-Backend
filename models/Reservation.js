@@ -66,9 +66,9 @@ reservationSchema.index({ stationId: 1, scheduledStartTime: 1 });
 
 // Pre-save middleware to validate scheduled start time
 reservationSchema.pre('save', function(next) {
-  if (this.scheduledStartTime < new Date()) {
-    return next(new Error('Scheduled start time cannot be in the past'));
-  }
+  // if (this.scheduledStartTime < new Date()) {
+  //   return next(new Error('Scheduled start time cannot be in the past'));
+  // }
   next();
 });
 

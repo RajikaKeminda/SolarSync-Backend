@@ -454,14 +454,14 @@ router.post('/', async (req, res) => {
     }
 
     // Validate charging port types
-    const validPortTypes = ['Type1', 'Type2', 'CCS', 'CHAdeMO', 'Tesla'];
-    if (!Array.isArray(vehicleData.chargingPortType) || 
-        !vehicleData.chargingPortType.every(type => validPortTypes.includes(type))) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid charging port type. Must be one of: ' + validPortTypes.join(', ')
-      });
-    }
+    // const validPortTypes = ['Type1', 'Type2', 'CCS', 'CHAdeMO', 'Tesla'];
+    // if (!Array.isArray(vehicleData.chargingPortType) || 
+    //     !vehicleData.chargingPortType.every(type => validPortTypes.includes(type))) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Invalid charging port type. Must be one of: ' + validPortTypes.join(', ')
+    //   });
+    // }
 
     // Validate current battery level if provided
     if (vehicleData.currentBatteryLevel !== undefined && 
@@ -517,16 +517,16 @@ router.put('/:id', async (req, res) => {
     }
 
     // Validate charging port types if provided
-    if (vehicleData.chargingPortType) {
-      const validPortTypes = ['Type1', 'Type2', 'CCS', 'CHAdeMO', 'Tesla'];
-      if (!Array.isArray(vehicleData.chargingPortType) || 
-          !vehicleData.chargingPortType.every(type => validPortTypes.includes(type))) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid charging port type. Must be one of: ' + validPortTypes.join(', ')
-        });
-      }
-    }
+    // if (vehicleData.chargingPortType) {
+    //   const validPortTypes = ['Type1', 'Type2', 'CCS', 'CHAdeMO', 'Tesla'];
+    //   if (!Array.isArray(vehicleData.chargingPortType) || 
+    //       !vehicleData.chargingPortType.every(type => validPortTypes.includes(type))) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: 'Invalid charging port type. Must be one of: ' + validPortTypes.join(', ')
+    //     });
+    //   }
+    // }
 
     // Validate current battery level if provided
     if (vehicleData.currentBatteryLevel !== undefined && 
