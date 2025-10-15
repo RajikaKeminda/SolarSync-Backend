@@ -784,4 +784,84 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /charging-sessions/dashboard/active - Get active sessions for dashboard
+router.get('/dashboard/active', async (req, res) => {
+  try {
+    const { userId, ownerId } = req.query;
+    
+    if (!userId && !ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID or Owner ID is required'
+      });
+    }
+
+    const sessions = await chargingSessionService.getDashboardActiveSessions(userId, ownerId);
+    res.json({
+      success: true,
+      data: sessions,
+      count: sessions.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard active sessions',
+      error: error.message
+    });
+  }
+});
+
+// GET /charging-sessions/dashboard/recent - Get recent sessions for dashboard
+router.get('/dashboard/recent', async (req, res) => {
+  try {
+    const { userId, ownerId, limit = 5 } = req.query;
+    
+    if (!userId && !ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID or Owner ID is required'
+      });
+    }
+
+    const sessions = await chargingSessionService.getDashboardRecentSessions(userId, ownerId, limit);
+    res.json({
+      success: true,
+      data: sessions,
+      count: sessions.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard recent sessions',
+      error: error.message
+    });
+  }
+});
+
+// GET /charging-sessions/dashboard/stats - Get dashboard statistics
+router.get('/dashboard/stats', async (req, res) => {
+  try {
+    const { userId, ownerId, period = 'month' } = req.query;
+    
+    if (!userId && !ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID or Owner ID is required'
+      });
+    }
+
+    const stats = await chargingSessionService.getDashboardStats(userId, ownerId, period);
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard statistics',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

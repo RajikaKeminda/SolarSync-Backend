@@ -612,6 +612,126 @@ const getChargingSessionsByCriteria = async (criteria) => {
   }
 };
 
+// Get dashboard active sessions
+const getDashboardActiveSessions = async (userId, ownerId) => {
+  try {
+    let query = {};
+    
+    if (userId) {
+      query.userId = userId;
+    } else if (ownerId) {
+      // Get stations owned by the owner
+      const Station = require('../models/Station');
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+      query.stationId = { $in: stationIds };
+    }
+    
+    query.status = 'active';
+    
+    const sessions = await ChargingSession.find(query)
+      .populate('userId', 'firstName lastName email')
+      .populate('vehicleId', 'make model year')
+      .populate('stationId', 'name address')
+      .sort({ startTime: -1 });
+    
+    return sessions;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get dashboard recent sessions
+const getDashboardRecentSessions = async (userId, ownerId, limit = 5) => {
+  try {
+    let query = {};
+    
+    if (userId) {
+      query.userId = userId;
+    } else if (ownerId) {
+      // Get stations owned by the owner
+      const Station = require('../models/Station');
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+      query.stationId = { $in: stationIds };
+    }
+    
+    const sessions = await ChargingSession.find(query)
+      .populate('userId', 'firstName lastName email')
+      .populate('vehicleId', 'make model year')
+      .populate('stationId', 'name address')
+      .sort({ startTime: -1 })
+      .limit(parseInt(limit));
+    
+    return sessions;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get dashboard statistics
+const getDashboardStats = async (userId, ownerId, period = 'month') => {
+  try {
+    const dateFilter = getDateFilter(period);
+    let query = { startTime: dateFilter };
+    
+    if (userId) {
+      query.userId = userId;
+    } else if (ownerId) {
+      // Get stations owned by the owner
+      const Station = require('../models/Station');
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+      query.stationId = { $in: stationIds };
+    }
+    
+    const sessions = await ChargingSession.find(query);
+    
+    const stats = {
+      totalSessions: sessions.length,
+      totalEnergy: sessions.reduce((sum, session) => sum + (session.energyDelivered || 0), 0),
+      totalCost: sessions.reduce((sum, session) => sum + (session.cost || 0), 0),
+      averageDuration: sessions.length > 0 
+        ? sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / sessions.length 
+        : 0,
+      activeSessions: await ChargingSession.countDocuments({ 
+        ...query, 
+        status: 'active' 
+      }),
+      completedSessions: await ChargingSession.countDocuments({ 
+        ...query, 
+        status: 'completed' 
+      })
+    };
+    
+    return stats;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Helper function to get date filter
+const getDateFilter = (period) => {
+  const now = new Date();
+  let startDate;
+
+  switch (period) {
+    case 'week':
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'year':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      break;
+    default:
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  return { $gte: startDate };
+};
+
 module.exports = {
   createChargingSession,
   getAllChargingSessions,
@@ -640,5 +760,8 @@ module.exports = {
   getGlobalChargingSessionStats,
   getRecentChargingSessions,
   getChargingSessionsByCriteria,
-  getChargingSessionsByStationOwnerId
+  getChargingSessionsByStationOwnerId,
+  getDashboardActiveSessions,
+  getDashboardRecentSessions,
+  getDashboardStats
 };
