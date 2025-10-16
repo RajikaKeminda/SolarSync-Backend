@@ -422,6 +422,294 @@ class AnalyticsService {
 
     return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
   }
+
+  // Get business metrics for analytics dashboard
+  async getBusinessMetrics(ownerId, period = 'month') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      // Get owner's stations
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+
+      // Get charging sessions for owner's stations
+      const sessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: dateFilter
+      }).populate('userId vehicleId stationId');
+
+      // Calculate metrics
+      const totalRevenue = sessions.reduce((sum, session) => sum + (session.cost || 0), 0);
+      const totalSessions = sessions.length;
+      const totalEnergy = sessions.reduce((sum, session) => sum + (session.energyDelivered || 0), 0);
+      const averageSessionDuration = sessions.length > 0 
+        ? sessions.reduce((sum, session) => sum + (session.duration || 0), 0) / sessions.length 
+        : 0;
+
+      // Calculate growth rate (compare with previous period)
+      const previousPeriodFilter = this.getPreviousPeriodFilter(period);
+      const previousSessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: previousPeriodFilter
+      });
+      const previousRevenue = previousSessions.reduce((sum, session) => sum + (session.cost || 0), 0);
+      const growthRate = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+      // Get customer satisfaction (mock for now - would need reviews)
+      const customerSatisfaction = 4.6; // This would come from reviews
+
+      // Get top performing station
+      const stationPerformance = {};
+      sessions.forEach(session => {
+        if (session.stationId && session.stationId.name) {
+          if (!stationPerformance[session.stationId.name]) {
+            stationPerformance[session.stationId.name] = { sessions: 0, revenue: 0 };
+          }
+          stationPerformance[session.stationId.name].sessions++;
+          stationPerformance[session.stationId.name].revenue += session.cost || 0;
+        }
+      });
+
+      const topPerformingStation = Object.entries(stationPerformance)
+        .sort(([,a], [,b]) => b.revenue - a.revenue)[0]?.[0] || 'No data';
+
+      return {
+        totalRevenue,
+        totalSessions,
+        totalEnergy,
+        averageSessionDuration: Math.round(averageSessionDuration),
+        growthRate: Math.round(growthRate * 100) / 100,
+        customerSatisfaction,
+        topPerformingStation
+      };
+    } catch (error) {
+      throw new Error(`Error calculating business metrics: ${error.message}`);
+    }
+  }
+
+  // Get revenue trends
+  async getRevenueTrends(ownerId, period = 'month') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      // Get owner's stations
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+
+      // Get charging sessions
+      const sessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: dateFilter
+      });
+
+      // Group by period
+      const monthlyData = {};
+      sessions.forEach(session => {
+        const month = session.startTime.toISOString().substring(0, 7);
+        if (!monthlyData[month]) {
+          monthlyData[month] = {
+            month: month.substring(5), // Just MM format
+            revenue: 0,
+            sessions: 0,
+            energy: 0
+          };
+        }
+        monthlyData[month].revenue += session.cost || 0;
+        monthlyData[month].sessions += 1;
+        monthlyData[month].energy += session.energyDelivered || 0;
+      });
+
+      return {
+        monthlyData: Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month))
+      };
+    } catch (error) {
+      throw new Error(`Error calculating revenue trends: ${error.message}`);
+    }
+  }
+
+  // Get station performance
+  async getStationPerformance(ownerId, period = 'month') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      // Get owner's stations
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+
+      // Get charging sessions
+      const sessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: dateFilter
+      }).populate('stationId');
+
+      // Calculate performance for each station
+      const stationPerformance = {};
+      sessions.forEach(session => {
+        if (session.stationId && session.stationId.name) {
+          if (!stationPerformance[session.stationId.name]) {
+            stationPerformance[session.stationId.name] = { 
+              name: session.stationId.name,
+              sessions: 0, 
+              revenue: 0,
+              utilization: 0
+            };
+          }
+          stationPerformance[session.stationId.name].sessions++;
+          stationPerformance[session.stationId.name].revenue += session.cost || 0;
+        }
+      });
+
+      // Calculate utilization (sessions per day / total possible sessions)
+      const daysInPeriod = this.getDaysInPeriod(period);
+      Object.values(stationPerformance).forEach(station => {
+        station.utilization = Math.round((station.sessions / daysInPeriod) * 10); // Rough utilization percentage
+      });
+
+      return {
+        stations: Object.values(stationPerformance)
+      };
+    } catch (error) {
+      throw new Error(`Error calculating station performance: ${error.message}`);
+    }
+  }
+
+  // Get peak hours analysis
+  async getPeakHoursAnalysis(ownerId, period = 'month') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      // Get owner's stations
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+
+      // Get charging sessions
+      const sessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: dateFilter
+      });
+
+      // Group by hour
+      const hourlyData = {};
+      for (let i = 0; i < 24; i++) {
+        const hour = i.toString().padStart(2, '0') + ':00';
+        hourlyData[hour] = { hour, sessions: 0 };
+      }
+
+      sessions.forEach(session => {
+        const hour = new Date(session.startTime).getHours();
+        const hourKey = hour.toString().padStart(2, '0') + ':00';
+        if (hourlyData[hourKey]) {
+          hourlyData[hourKey].sessions++;
+        }
+      });
+
+      return {
+        hourlyData: Object.values(hourlyData)
+      };
+    } catch (error) {
+      throw new Error(`Error calculating peak hours analysis: ${error.message}`);
+    }
+  }
+
+  // Get customer insights
+  async getCustomerInsights(ownerId, period = 'month') {
+    try {
+      const dateFilter = this.getDateFilter(period);
+      
+      // Get owner's stations
+      const stations = await Station.find({ ownerId });
+      const stationIds = stations.map(station => station._id);
+
+      // Get charging sessions
+      const sessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: dateFilter
+      }).populate('userId');
+
+      // Calculate customer insights
+      const uniqueCustomers = new Set();
+      const customerSessions = {};
+      
+      sessions.forEach(session => {
+        if (session.userId && session.userId._id) {
+          uniqueCustomers.add(session.userId._id.toString());
+          const userId = session.userId._id.toString();
+          if (!customerSessions[userId]) {
+            customerSessions[userId] = 0;
+          }
+          customerSessions[userId]++;
+        }
+      });
+
+      // Calculate repeat customers (customers with more than 1 session)
+      const repeatCustomers = Object.values(customerSessions).filter(count => count > 1).length;
+      const repeatCustomerRate = uniqueCustomers.size > 0 ? (repeatCustomers / uniqueCustomers.size) * 100 : 0;
+
+      // Mock customer satisfaction (would come from reviews)
+      const customerSatisfaction = 4.6;
+
+      // Calculate growth rate
+      const previousPeriodFilter = this.getPreviousPeriodFilter(period);
+      const previousSessions = await ChargingSession.find({
+        stationId: { $in: stationIds },
+        startTime: previousPeriodFilter
+      });
+      const previousRevenue = previousSessions.reduce((sum, session) => sum + (session.cost || 0), 0);
+      const currentRevenue = sessions.reduce((sum, session) => sum + (session.cost || 0), 0);
+      const growthRate = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+      return {
+        customerSatisfaction,
+        repeatCustomers: Math.round(repeatCustomerRate),
+        growthRate: Math.round(growthRate * 100) / 100
+      };
+    } catch (error) {
+      throw new Error(`Error calculating customer insights: ${error.message}`);
+    }
+  }
+
+
+  // Helper method to get previous period filter
+  getPreviousPeriodFilter(period) {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        endDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear() - 1, 0, 1);
+        endDate = new Date(now.getFullYear() - 1, 11, 31);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    }
+
+    return { $gte: startDate, $lte: endDate };
+  }
+
+  // Helper method to get days in period
+  getDaysInPeriod(period) {
+    const now = new Date();
+    
+    switch (period) {
+      case 'week':
+        return 7;
+      case 'month':
+        return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      case 'year':
+        return 365;
+      default:
+        return 30;
+    }
+  }
 }
 
 module.exports = new AnalyticsService();

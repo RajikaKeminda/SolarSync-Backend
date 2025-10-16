@@ -133,5 +133,135 @@ router.get('/trends', async (req, res) => {
   }
 });
 
+// GET /analytics/business/metrics - Get business metrics
+router.get('/business/metrics', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+    
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    const metrics = await analyticsService.getBusinessMetrics(ownerId, period);
+    res.json({
+      success: true,
+      data: metrics
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching business metrics',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/business/revenue - Get revenue trends
+router.get('/business/revenue', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+    
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    const revenue = await analyticsService.getRevenueTrends(ownerId, period);
+    res.json({
+      success: true,
+      data: revenue
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching revenue trends',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/business/station-performance - Get station performance
+router.get('/business/station-performance', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+    
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    const performance = await analyticsService.getStationPerformance(ownerId, period);
+    res.json({
+      success: true,
+      data: performance
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching station performance',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/business/peak-hours - Get peak hours analysis
+router.get('/business/peak-hours', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+    
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    const peakHours = await analyticsService.getPeakHoursAnalysis(ownerId, period);
+    res.json({
+      success: true,
+      data: peakHours
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching peak hours analysis',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/business/customer-insights - Get customer insights
+router.get('/business/customer-insights', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+    
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    const insights = await analyticsService.getCustomerInsights(ownerId, period);
+    res.json({
+      success: true,
+      data: insights
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer insights',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
 
