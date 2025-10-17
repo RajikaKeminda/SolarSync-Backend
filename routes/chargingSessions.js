@@ -495,7 +495,7 @@ router.post('/', async (req, res) => {
     const sessionData = req.body;
     
     // Validate required fields
-    const requiredFields = ['userId', 'vehicleId', 'stationId', 'startTime', 'energyDelivered', 'cost'];
+    const requiredFields = ['userId', 'vehicleId', 'stationId', 'startTime'];
     const missingFields = requiredFields.filter(field => !sessionData[field]);
     
     if (missingFields.length > 0) {
