@@ -101,6 +101,44 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// GET /stations/nearby - Get stations near a location (used by trip planning)
+router.get('/nearby', async (req, res) => {
+  try {
+    const { lat, lng, radius } = req.query;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude (lat) and longitude (lng) parameters are required'
+      });
+    }
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const radiusKm = radius ? parseFloat(radius) : 50;
+    
+    if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusKm)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid latitude, longitude, or radius values'
+      });
+    }
+    
+    const stations = await stationService.getStationsByLocation(latitude, longitude, radiusKm);
+    res.json({
+      success: true,
+      data: stations,
+      count: stations.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching nearby stations',
+      error: error.message
+    });
+  }
+});
+
 // GET /stations/location - Get stations by location
 router.get('/location', async (req, res) => {
   try {
