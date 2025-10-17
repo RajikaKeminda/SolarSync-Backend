@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const analyticsService = require('../services/analyticsService');
 const aiSuggestionsService = require('../services/aiSuggestionsService');
+const aiUserRecommendationsService = require('../services/aiUserRecommendationsService');
 
 // GET /analytics - Get user analytics
 router.get('/', async (req, res) => {
@@ -315,6 +316,137 @@ router.get('/ai-suggestions', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error generating AI suggestions',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/ai-user-recommendations - Get AI-powered personalized recommendations for EV users
+router.get('/ai-user-recommendations', async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required'
+      });
+    }
+
+    // Import required services for user data
+    const vehicleService = require('../services/vehicleService');
+    const chargingSessionService = require('../services/chargingSessionService');
+    const reservationService = require('../services/reservationService');
+    const stationService = require('../services/stationService');
+
+    // Gather user data
+    const [vehicles, chargingSessions, reservations, stations] = await Promise.all([
+      vehicleService.getVehiclesByOwnerId(userId),
+      chargingSessionService.getChargingSessionsByUserId(userId),
+      reservationService.getReservationsByUserId(userId),
+      stationService.getAllStations()
+    ]);
+
+    // Get primary vehicle
+    const primaryVehicle = vehicles.find(v => v.isDefault) || vehicles[0];
+
+    // Analyze charging history (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentSessions = chargingSessions.filter(s => 
+      new Date(s.startTime) > thirtyDaysAgo && s.status === 'completed'
+    );
+
+    // Calculate charging statistics
+    const totalEnergy = recentSessions.reduce((sum, s) => sum + (s.energyDelivered || 0), 0);
+    const avgDuration = recentSessions.length > 0
+      ? recentSessions.reduce((sum, s) => {
+          const duration = s.endTime 
+            ? (new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000 
+            : 0;
+          return sum + duration;
+        }, 0) / recentSessions.length
+      : 0;
+
+    // Find most frequent charging times
+    const chargingHours = recentSessions.map(s => new Date(s.startTime).getHours());
+    const hourCounts = {};
+    chargingHours.forEach(hour => {
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    });
+    const peakTimes = Object.entries(hourCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([hour]) => `${hour}:00`);
+
+    // Find favorite stations
+    const stationCounts = {};
+    recentSessions.forEach(s => {
+      const stationId = typeof s.stationId === 'object' ? s.stationId._id : s.stationId;
+      stationCounts[stationId] = (stationCounts[stationId] || 0) + 1;
+    });
+    const favoriteStationIds = Object.entries(stationCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([id]) => id);
+    const favoriteStations = stations
+      .filter(s => favoriteStationIds.includes(s._id.toString()))
+      .map(s => s.name);
+
+    // Check for active sessions
+    const hasActiveSession = chargingSessions.some(s => s.status === 'active');
+
+    // Count upcoming reservations
+    const upcomingReservations = reservations.filter(r => 
+      r.status === 'confirmed' && new Date(r.scheduledStartTime) > new Date()
+    ).length;
+
+    // Find last charging session
+    const lastSession = chargingSessions
+      .filter(s => s.status === 'completed')
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0];
+    const lastCharged = lastSession 
+      ? new Date(lastSession.startTime).toLocaleDateString() 
+      : 'Unknown';
+
+    // Prepare user data for AI analysis
+    const userData = {
+      userId,
+      vehicle: primaryVehicle ? {
+        make: primaryVehicle.make,
+        model: primaryVehicle.model,
+        year: primaryVehicle.year,
+        batteryCapacity: primaryVehicle.batteryCapacity,
+        currentBatteryLevel: primaryVehicle.currentBatteryLevel || 85,
+        estimatedRange: primaryVehicle.estimatedRange,
+        chargingPortType: primaryVehicle.chargingPortType
+      } : null,
+      chargingHistory: {
+        totalSessions: recentSessions.length,
+        totalEnergy: totalEnergy.toFixed(1),
+        avgDuration: avgDuration.toFixed(0),
+        peakTimes,
+        favoriteStations
+      },
+      hasActiveSession,
+      upcomingReservations,
+      lastCharged,
+      nearbyStationsCount: stations.length
+    };
+
+    // Generate AI recommendations
+    const recommendations = await aiUserRecommendationsService.generateUserRecommendations(userData);
+
+    res.json({
+      success: true,
+      data: recommendations
+    });
+  } catch (error) {
+    console.error('Error generating user recommendations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating recommendations',
       error: error.message
     });
   }
