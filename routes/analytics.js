@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const analyticsService = require('../services/analyticsService');
+const aiSuggestionsService = require('../services/aiSuggestionsService');
 
 // GET /analytics - Get user analytics
 router.get('/', async (req, res) => {
@@ -258,6 +259,62 @@ router.get('/business/customer-insights', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching customer insights',
+      error: error.message
+    });
+  }
+});
+
+// GET /analytics/ai-suggestions - Get AI-powered business suggestions
+router.get('/ai-suggestions', async (req, res) => {
+  try {
+    const { ownerId, period = 'month' } = req.query;
+
+    if (!ownerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Owner ID is required'
+      });
+    }
+
+    // Gather all analytics data for AI analysis
+    const [metrics, revenue, stationPerformance, peakHours, customerInsights] = await Promise.all([
+      analyticsService.getBusinessMetrics(ownerId, period),
+      analyticsService.getRevenueTrends(ownerId, period),
+      analyticsService.getStationPerformance(ownerId, period),
+      analyticsService.getPeakHoursAnalysis(ownerId, period),
+      analyticsService.getCustomerInsights(ownerId, period)
+    ]);
+
+    // Prepare data for AI analysis
+    const analyticsData = {
+      totalRevenue: metrics.totalRevenue || 0,
+      totalSessions: metrics.totalSessions || 0,
+      totalEnergy: metrics.totalEnergy || 0,
+      averageSessionDuration: metrics.averageSessionDuration || 0,
+      growthRate: metrics.growthRate || 0,
+      customerSatisfaction: customerInsights.averageRating || 4.5,
+      topPerformingStation: stationPerformance.stations?.[0]?.name || 'N/A',
+      stationPerformance: stationPerformance.stations || [],
+      peakHours: peakHours.peakHours || [],
+      period
+    };
+
+    // Generate AI suggestions
+    const suggestions = await aiSuggestionsService.generateBusinessSuggestions(analyticsData);
+
+    res.json({
+      success: true,
+      data: {
+        suggestions,
+        generatedAt: new Date(),
+        basedOnPeriod: period
+      }
+    });
+  } catch (error) {
+    console.error('Error generating AI suggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating AI suggestions',
       error: error.message
     });
   }
