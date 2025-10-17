@@ -65,17 +65,8 @@ reviewSchema.index({ commentType: 1 });
 // Compound index to prevent duplicate reviews from same user for same station
 reviewSchema.index({ userId: 1, stationId: 1 }, { unique: true });
 
-// Pre-save middleware to automatically determine comment type based on rating
-reviewSchema.pre('save', function(next) {
-  if (this.rating >= 4) {
-    this.commentType = 'positive';
-  } else if (this.rating <= 2) {
-    this.commentType = 'negative';
-  } else {
-    this.commentType = 'neutral';
-  }
-  next();
-});
+// Note: commentType is now determined by AI sentiment analysis during review creation
+// See aiReviewSentimentService.js for implementation
 
 const Review = mongoose.model('Review', reviewSchema);
 

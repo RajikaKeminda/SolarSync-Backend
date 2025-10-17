@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reviewService = require('../services/reviewService');
+const aiReviewSentimentService = require('../services/aiReviewSentimentService');
 
 // GET /reviews - Get all reviews
 router.get('/', async (req, res) => {
@@ -302,6 +303,26 @@ router.get('/stats/station/:stationId', async (req, res) => {
   }
 });
 
+// GET /reviews/sentiment/station/:stationId - Get sentiment statistics for a station
+router.get('/sentiment/station/:stationId', async (req, res) => {
+  try {
+    const { stationId } = req.params;
+    const reviews = await reviewService.getReviewsByStationId(stationId);
+    const sentimentStats = aiReviewSentimentService.calculateSentimentStats(reviews);
+    
+    res.json({
+      success: true,
+      data: sentimentStats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching sentiment statistics',
+      error: error.message
+    });
+  }
+});
+
 // GET /reviews/stats/user/:userId - Get review statistics for a user
 router.get('/stats/user/:userId', async (req, res) => {
   try {
@@ -344,7 +365,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /reviews - Create new review
+// POST /reviews - Create new review (with AI sentiment analysis)
 router.post('/', async (req, res) => {
   try {
     const reviewData = req.body;
@@ -377,11 +398,23 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Use AI to analyze sentiment
+    console.log('Analyzing review sentiment with AI...');
+    const commentType = await aiReviewSentimentService.analyzeReviewSentiment(
+      reviewData.comment, 
+      reviewData.rating
+    );
+    console.log(`AI determined sentiment: ${commentType}`);
+
+    // Add AI-determined sentiment to review data
+    reviewData.commentType = commentType;
+
     const review = await reviewService.createReview(reviewData);
     res.status(201).json({
       success: true,
       data: review,
-      message: 'Review created successfully'
+      message: 'Review created successfully',
+      sentiment: commentType
     });
   } catch (error) {
     if (error.code === 11000) {
