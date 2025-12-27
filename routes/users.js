@@ -182,4 +182,40 @@ router.get('/verified/all', async (req, res) => {
   }
 });
 
+// GET /users/email/:email - Get user by email
+router.get('/email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await userService.getUserByEmail(email);
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user by email',
+      error: error.message
+    });
+  }
+});
+
+// GET /users/phone/:phone - Get user by phone
+router.get('/phone/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const user = await userService.getUserByPhone(phone);
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching user by phone',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
